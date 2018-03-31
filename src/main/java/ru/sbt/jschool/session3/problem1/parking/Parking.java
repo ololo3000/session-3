@@ -1,11 +1,7 @@
 package ru.sbt.jschool.session3.problem1.parking;
 
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.concurrent.TimeUnit;
 
 public class Parking {
     private final int capacity;
