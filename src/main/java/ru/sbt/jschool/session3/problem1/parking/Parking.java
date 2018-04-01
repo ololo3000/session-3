@@ -4,26 +4,26 @@ import java.text.ParseException;
 import java.util.HashMap;
 
 public class Parking {
-    private final int capacity;
-    private final float tariff;
+    private final int CAPACITY;
+    private final float TARIFF;
     private HashMap<Long, Long> cars = new HashMap();
-    private final int dayHours = 24;
-    private final int startHourOfDT = 23;
-    private final long doubleTariffDuration = 7;
-    private final float summPerDay;
-    private long endHourOfDT;
+    private final int DAY_HOURS = 24;
+    private final int START_HOUR_OF_DT = 23;
+    private final long DOUBLE_TARIFF_DURATION = 7;
+    private final float SUM_PER_DAY;
+    private final long END_HOUR_OF_DT;
 
 
     public Parking(int capacity, float tariff) {
         cars = new HashMap(capacity, 1);
-        this.capacity = capacity;
-        this.tariff = tariff;
-        endHourOfDT = (startHourOfDT + doubleTariffDuration) % dayHours;
-        this.summPerDay = (doubleTariffDuration + dayHours) * tariff;
+        this.CAPACITY = capacity;
+        this.TARIFF = tariff;
+        END_HOUR_OF_DT = (START_HOUR_OF_DT + DOUBLE_TARIFF_DURATION) % DAY_HOURS;
+        this.SUM_PER_DAY = (DOUBLE_TARIFF_DURATION + DAY_HOURS) * TARIFF;
     }
 
     public boolean driveIn(long carId, long driveInTime) {
-        if (cars.size() == capacity) {
+        if (cars.size() == CAPACITY) {
             return false;
         }
         if (!cars.containsKey(carId)) {
@@ -38,39 +38,37 @@ public class Parking {
 
         if (cars.containsKey(carId)) {
             long parkingTime = driveOutTime - cars.get(carId);
+            long dh = parkingTime % DAY_HOURS;
+            long sh = cars.get(carId) % DAY_HOURS;
+            long eh = (sh + dh) % DAY_HOURS;
 
-            sum += (int) (parkingTime / dayHours) * summPerDay;
-
-            long dh = parkingTime % dayHours;
-            long sh = cars.get(carId) % dayHours;
-            long eh = (sh + dh) % dayHours;
-
+            sum += (int) (parkingTime / DAY_HOURS) * SUM_PER_DAY;
             cars.remove(carId);
 
-            if (eh <= startHourOfDT
-                    && eh >= endHourOfDT
-                    && sh >= endHourOfDT
-                    && sh <= startHourOfDT) {
-                sum += dh * tariff;
+            if (eh <= START_HOUR_OF_DT
+                    && eh >= END_HOUR_OF_DT
+                    && sh >= END_HOUR_OF_DT
+                    && sh <= START_HOUR_OF_DT) {
+                sum += dh * TARIFF;
                 return sum;
             }
 
-            if (sh < startHourOfDT && sh > endHourOfDT) {
-                sum += (startHourOfDT - sh) * tariff;
-                sh = startHourOfDT;
+            if (sh < START_HOUR_OF_DT && sh > END_HOUR_OF_DT) {
+                sum += (START_HOUR_OF_DT - sh) * TARIFF;
+                sh = START_HOUR_OF_DT;
             }
 
-            if (eh > endHourOfDT && eh < startHourOfDT) {
-                sum += (eh - endHourOfDT) * tariff;
-                eh = endHourOfDT;
+            if (eh > END_HOUR_OF_DT && eh < START_HOUR_OF_DT) {
+                sum += (eh - END_HOUR_OF_DT) * TARIFF;
+                eh = END_HOUR_OF_DT;
             }
 
-            long d = eh - sh;
+            long duration = eh - sh;
 
-            if (d < 0) {
-                d = d + dayHours;
+            if (duration < 0) {
+                duration = duration + DAY_HOURS;
             }
-            sum += d * tariff * 2;
+            sum += duration * TARIFF * 2;
         }
         return sum;
     }
