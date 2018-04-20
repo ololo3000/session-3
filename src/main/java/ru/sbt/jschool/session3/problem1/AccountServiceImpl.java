@@ -5,15 +5,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  */
 public class AccountServiceImpl implements AccountService {
     protected FraudMonitoring fraudMonitoring;
 
-    private HashMap<Long, Account> accounts = new HashMap<>();
-    private HashMap<Long, List<Account>> clients = new HashMap<>();
-    private HashSet<Long> operations = new HashSet<>();
+    private Map<Long, Account> accounts = new ConcurrentHashMap<>();
+    private Map<Long, List<Account>> clients = new ConcurrentHashMap<>();
+    private Set<Long> operations = ConcurrentHashMap.newKeySet();
 
     public AccountServiceImpl(FraudMonitoring fraudMonitoring) {
         this.fraudMonitoring = fraudMonitoring;
@@ -26,13 +30,12 @@ public class AccountServiceImpl implements AccountService {
         }
 
         if (!accounts.containsKey(accountID)) {
-
             Account account = new Account(clientID, accountID, currency, initialBalance);
             accounts.put(accountID, account);
             if (clients.containsKey(clientID)) {
                 clients.get(clientID).add(account);
             } else {
-                ArrayList<Account> list = new ArrayList<>();
+                List<Account> list = new CopyOnWriteArrayList<>();
                 list.add(account);
                 clients.put(clientID, list);
             }
@@ -56,8 +59,10 @@ public class AccountServiceImpl implements AccountService {
         if (operations.contains(payment.getOperationID())) {
             return Result.ALREADY_EXISTS;
         }
+
         Account payer = accounts.get(payment.getPayerAccountID());
         Account recipient = accounts.get(payment.getRecipientAccountID());
+
         if (payer == null || payment.getPayerID() != payer.getClientID()) {
             return Result.PAYER_NOT_FOUND;
         }
@@ -78,7 +83,9 @@ public class AccountServiceImpl implements AccountService {
             return Result.INSUFFICIENT_FUNDS;
         }
 
-        payer.setBalance(payer.getBalance() - payment.getAmount());
+        synchronized (this) {
+            payer.setBalance(payer.getBalance() - payment.getAmount());
+        }
 
         float amount;
         if (payer.getCurrency() != recipient.getCurrency()) {
@@ -87,7 +94,9 @@ public class AccountServiceImpl implements AccountService {
             amount = payment.getAmount();
         }
 
-        recipient.setBalance(recipient.getBalance() + amount);
+        synchronized (this) {
+            recipient.setBalance(recipient.getBalance() + amount);
+        }
 
         operations.add(payment.getOperationID());
 

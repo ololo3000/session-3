@@ -5,15 +5,15 @@ import java.util.Objects;
 /**
  */
 public class Payment {
-    private long operationID;
+    private final long operationID;
 
-    private long payerID;
-    private long payerAccountID;
+    private final long payerID;
+    private final long payerAccountID;
 
-    private long recipientID;
-    private long recipientAccountID;
+    private final long recipientID;
+    private final long recipientAccountID;
 
-    private float amount;
+    private final float amount;
 
     public Payment(long operationID, long payerID, long payerAccountID, long recipientID, long recipientAccountID,
         float amount) {
@@ -29,48 +29,24 @@ public class Payment {
         return payerID;
     }
 
-    public void setPayerID(long payerID) {
-        this.payerID = payerID;
-    }
-
     public long getPayerAccountID() {
         return payerAccountID;
-    }
-
-    public void setPayerAccountID(long payerAccountID) {
-        this.payerAccountID = payerAccountID;
     }
 
     public long getRecipientID() {
         return recipientID;
     }
 
-    public void setRecipientID(long recipientID) {
-        this.recipientID = recipientID;
-    }
-
     public long getRecipientAccountID() {
         return recipientAccountID;
-    }
-
-    public void setRecipientAccountID(long recipientAccountID) {
-        this.recipientAccountID = recipientAccountID;
     }
 
     public float getAmount() {
         return amount;
     }
 
-    public void setAmount(float amount) {
-        this.amount = amount;
-    }
-
     public long getOperationID() {
         return operationID;
-    }
-
-    public void setOperationID(long operationID) {
-        this.operationID = operationID;
     }
 
     @Override public boolean equals(Object o) {
