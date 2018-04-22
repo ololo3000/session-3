@@ -79,12 +79,9 @@ public class AccountServiceImpl implements AccountService {
             return Result.FRAUD;
         }
 
-        if (payer.getBalance() < payment.getAmount()) {
-            return Result.INSUFFICIENT_FUNDS;
-        }
 
-        synchronized (this) {
-            payer.setBalance(payer.getBalance() - payment.getAmount());
+        if (!payer.getMoneyFromBalance(payment.getAmount()))  {
+            return Result.INSUFFICIENT_FUNDS;
         }
 
         float amount;
@@ -94,9 +91,7 @@ public class AccountServiceImpl implements AccountService {
             amount = payment.getAmount();
         }
 
-        synchronized (this) {
-            recipient.setBalance(recipient.getBalance() + amount);
-        }
+        recipient.putMoneyToBalance(amount);
 
         operations.add(payment.getOperationID());
 

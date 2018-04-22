@@ -11,13 +11,13 @@ public class Account {
 
     private final Currency currency;
 
-    private volatile AtomicFloat balance = new AtomicFloat(0f);
+    private volatile AtomicBalance balance;
 
     public Account(long clientID, long accountID, Currency currency, float balance) {
         this.clientID = clientID;
         this.accountID = accountID;
         this.currency = currency;
-        this.balance.set(balance);
+        this.balance = new AtomicBalance(balance);
     }
 
     public long getClientID() {
@@ -36,8 +36,16 @@ public class Account {
         return balance.get();
     }
 
-    public void setBalance(float balance) {
+    /*public void setBalance(float balance) {
         this.balance.set(balance);
+    }*/
+
+    public boolean putMoneyToBalance(float money) {
+        return this.balance.increment(money);
+    }
+
+    public boolean getMoneyFromBalance(float money) {
+        return this.balance.decrement(money);
     }
 
     @Override public boolean equals(Object o) {
