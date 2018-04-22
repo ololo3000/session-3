@@ -40,12 +40,12 @@ public class Account {
         this.balance.set(balance);
     }*/
 
-    public boolean putMoneyToBalance(float money) {
-        return this.balance.increment(money);
+    public boolean depositeInToBalance(float cash) {
+        return this.balance.increment(cash);
     }
 
-    public boolean getMoneyFromBalance(float money) {
-        return this.balance.decrement(money);
+    public boolean withdrawMoneyFromBalance(float cash) {
+        return this.balance.decrement(cash);
     }
 
     @Override public boolean equals(Object o) {

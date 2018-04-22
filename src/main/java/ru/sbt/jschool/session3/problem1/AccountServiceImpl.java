@@ -80,7 +80,7 @@ public class AccountServiceImpl implements AccountService {
         }
 
 
-        if (!payer.getMoneyFromBalance(payment.getAmount()))  {
+        if (!payer.withdrawMoneyFromBalance(payment.getAmount()))  {
             return Result.INSUFFICIENT_FUNDS;
         }
 
@@ -91,7 +91,7 @@ public class AccountServiceImpl implements AccountService {
             amount = payment.getAmount();
         }
 
-        recipient.putMoneyToBalance(amount);
+        recipient.depositeInToBalance(amount);
 
         operations.add(payment.getOperationID());
 
