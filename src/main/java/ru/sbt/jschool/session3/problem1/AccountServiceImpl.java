@@ -80,7 +80,7 @@ public class AccountServiceImpl implements AccountService {
         }
 
 
-        if (!payer.withdrawMoneyFromBalance(payment.getAmount()))  {
+        if (!payer.withdrawFromBalance(payment.getAmount()))  {
             return Result.INSUFFICIENT_FUNDS;
         }
 

@@ -44,7 +44,7 @@ public class Account {
         return this.balance.increment(cash);
     }
 
-    public boolean withdrawMoneyFromBalance(float cash) {
+    public boolean withdrawFromBalance(float cash) {
         return this.balance.decrement(cash);
     }
 
