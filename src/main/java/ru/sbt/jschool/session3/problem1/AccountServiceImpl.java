@@ -16,7 +16,7 @@ public class AccountServiceImpl implements AccountService {
     protected FraudMonitoring fraudMonitoring;
 
     private Map<Long, Account> accounts = new ConcurrentHashMap<>();
-    private Map<Long, List<Account>> clients = new ConcurrentHashMap<>();
+    private Map<Long, Set<Account>> clients = new ConcurrentHashMap<>();
     private Set<Long> operations = ConcurrentHashMap.newKeySet();
 
     public AccountServiceImpl(FraudMonitoring fraudMonitoring) {
@@ -29,23 +29,18 @@ public class AccountServiceImpl implements AccountService {
             return Result.FRAUD;
         }
 
-        if (!accounts.containsKey(accountID)) {
-            Account account = new Account(clientID, accountID, currency, initialBalance);
-            accounts.put(accountID, account);
-            if (clients.containsKey(clientID)) {
-                clients.get(clientID).add(account);
-            } else {
-                List<Account> list = new CopyOnWriteArrayList<>();
-                list.add(account);
-                clients.put(clientID, list);
-            }
-            return Result.OK;
+        if (accounts.putIfAbsent(accountID, new Account(clientID, accountID, currency, initialBalance)) != null) {
+            return Result.ALREADY_EXISTS;
         }
-        return Result.ALREADY_EXISTS;
+
+        clients.putIfAbsent(clientID, ConcurrentHashMap.newKeySet());
+        clients.get(clientID).add(accounts.get(accountID));
+
+        return Result.OK;
     }
 
     @Override
-    public List<Account> findForClient(long clientID) {
+    public Set<Account> findForClient(long clientID) {
         return clients.get(clientID);
     }
 
