@@ -9,11 +9,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  */
 public class AccountServiceImpl implements AccountService {
     protected FraudMonitoring fraudMonitoring;
+    private ReentrantLock operationCheckLock = new ReentrantLock();
 
     private Map<Long, Account> accounts = new ConcurrentHashMap<>();
     private Map<Long, Set<Account>> clients = new ConcurrentHashMap<>();
@@ -51,31 +55,43 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Result doPayment(Payment payment) {
-        if (operations.contains(payment.getOperationID())) {
-            return Result.ALREADY_EXISTS;
+        operationCheckLock.lock();
+        try {
+            if (operations.contains(payment.getOperationID())) {
+                return Result.ALREADY_EXISTS;
+            }
+            operations.add(payment.getOperationID());
+        } finally {
+            operationCheckLock.unlock();
         }
+
 
         Account payer = accounts.get(payment.getPayerAccountID());
         Account recipient = accounts.get(payment.getRecipientAccountID());
 
         if (payer == null || payment.getPayerID() != payer.getClientID()) {
+            operations.remove(payment.getOperationID());
             return Result.PAYER_NOT_FOUND;
         }
 
         if (recipient == null || payment.getRecipientID() != recipient.getClientID()) {
+            operations.remove(payment.getOperationID());
             return Result.RECIPIENT_NOT_FOUND;
         }
 
         if (fraudMonitoring.check(recipient.getClientID())) {
+            operations.remove(payment.getOperationID());
             return Result.FRAUD;
         }
 
         if (fraudMonitoring.check(payer.getClientID())) {
+            operations.remove(payment.getOperationID());
             return Result.FRAUD;
         }
 
 
         if (!payer.withdrawFromBalance(payment.getAmount()))  {
+            operations.remove(payment.getOperationID());
             return Result.INSUFFICIENT_FUNDS;
         }
 
@@ -88,7 +104,6 @@ public class AccountServiceImpl implements AccountService {
 
         recipient.depositeInToBalance(amount);
 
-        operations.add(payment.getOperationID());
 
         return Result.OK;
     }
