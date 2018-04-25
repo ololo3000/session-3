@@ -1,27 +1,31 @@
 package ru.sbt.jschool.session3.problem1;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  */
 public class AccountServiceImpl implements AccountService {
     protected FraudMonitoring fraudMonitoring;
-    private ReentrantLock operationCheckLock = new ReentrantLock();
-
-    private Map<Long, Account> accounts = new ConcurrentHashMap<>();
+    private Map<Long, LockableAccount> accounts = new ConcurrentHashMap<>();
     private Map<Long, Set<Account>> clients = new ConcurrentHashMap<>();
-    private Set<Long> operations = ConcurrentHashMap.newKeySet();
+    private Set<Long> executedOperations = ConcurrentHashMap.newKeySet();
+    private Map<Long, Lock> onGoingOperations = new ConcurrentHashMap<>();
+
+    private class LockableAccount extends Account {
+        private Lock lock = new ReentrantLock();
+        public LockableAccount(long clientID, long accountID, Currency currency, float balance) {
+            super(clientID, accountID, currency, balance);
+        }
+
+        public Lock getLock() {
+            return lock;
+        }
+    }
 
     public AccountServiceImpl(FraudMonitoring fraudMonitoring) {
         this.fraudMonitoring = fraudMonitoring;
@@ -33,7 +37,7 @@ public class AccountServiceImpl implements AccountService {
             return Result.FRAUD;
         }
 
-        if (accounts.putIfAbsent(accountID, new Account(clientID, accountID, currency, initialBalance)) != null) {
+        if (accounts.putIfAbsent(accountID, new LockableAccount(clientID, accountID, currency, initialBalance)) != null) {
             return Result.ALREADY_EXISTS;
         }
 
@@ -55,56 +59,50 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Result doPayment(Payment payment) {
-        operationCheckLock.lock();
+        onGoingOperations.putIfAbsent(payment.getOperationID(), new ReentrantLock());
+        onGoingOperations.get(payment.getOperationID()).lock();
+
         try {
-            if (operations.contains(payment.getOperationID())) {
+
+            if (executedOperations.contains(payment.getOperationID())) {
                 return Result.ALREADY_EXISTS;
             }
-            operations.add(payment.getOperationID());
+
+            LockableAccount payer = accounts.get(payment.getPayerAccountID());
+            LockableAccount recipient = accounts.get(payment.getRecipientAccountID());
+
+            if (payer == null || payment.getPayerID() != payer.getClientID()) {
+                return Result.PAYER_NOT_FOUND;
+            }
+
+            if (recipient == null || payment.getRecipientID() != recipient.getClientID()) {
+                return Result.RECIPIENT_NOT_FOUND;
+            }
+
+            if (fraudMonitoring.check(recipient.getClientID())) {
+                return Result.FRAUD;
+            }
+
+            if (fraudMonitoring.check(payer.getClientID())) {
+                return Result.FRAUD;
+            }
+
+            if (!payer.withdrawFromBalance(payment.getAmount())) {
+                return Result.INSUFFICIENT_FUNDS;
+            }
+
+            float amount;
+            if (payer.getCurrency() != recipient.getCurrency()) {
+                amount = payer.getCurrency().to(payment.getAmount(), recipient.getCurrency());
+            } else {
+                amount = payment.getAmount();
+            }
+
+            recipient.depositeInToBalance(amount);
+            executedOperations.add(payment.getOperationID());
+            return Result.OK;
         } finally {
-            operationCheckLock.unlock();
+            onGoingOperations.get(payment.getOperationID()).unlock();
         }
-
-
-        Account payer = accounts.get(payment.getPayerAccountID());
-        Account recipient = accounts.get(payment.getRecipientAccountID());
-
-        if (payer == null || payment.getPayerID() != payer.getClientID()) {
-            operations.remove(payment.getOperationID());
-            return Result.PAYER_NOT_FOUND;
-        }
-
-        if (recipient == null || payment.getRecipientID() != recipient.getClientID()) {
-            operations.remove(payment.getOperationID());
-            return Result.RECIPIENT_NOT_FOUND;
-        }
-
-        if (fraudMonitoring.check(recipient.getClientID())) {
-            operations.remove(payment.getOperationID());
-            return Result.FRAUD;
-        }
-
-        if (fraudMonitoring.check(payer.getClientID())) {
-            operations.remove(payment.getOperationID());
-            return Result.FRAUD;
-        }
-
-
-        if (!payer.withdrawFromBalance(payment.getAmount()))  {
-            operations.remove(payment.getOperationID());
-            return Result.INSUFFICIENT_FUNDS;
-        }
-
-        float amount;
-        if (payer.getCurrency() != recipient.getCurrency()) {
-            amount = payer.getCurrency().to(payment.getAmount(), recipient.getCurrency());
-        } else {
-            amount = payment.getAmount();
-        }
-
-        recipient.depositeInToBalance(amount);
-
-
-        return Result.OK;
     }
 }

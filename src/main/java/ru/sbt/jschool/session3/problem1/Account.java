@@ -36,10 +36,6 @@ public class Account {
         return balance.get();
     }
 
-    /*public void setBalance(float balance) {
-        this.balance.set(balance);
-    }*/
-
     public boolean depositeInToBalance(float cash) {
         return this.balance.increment(cash);
     }
