@@ -100,6 +100,7 @@ public class AccountServiceImpl implements AccountService {
 
             recipient.depositeInToBalance(amount);
             executedOperations.add(payment.getOperationID());
+
             return Result.OK;
         } finally {
             onGoingOperations.get(payment.getOperationID()).unlock();
