@@ -11,21 +11,10 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class AccountServiceImpl implements AccountService {
     protected FraudMonitoring fraudMonitoring;
-    private Map<Long, LockableAccount> accounts = new ConcurrentHashMap<>();
+    private Map<Long, Account> accounts = new ConcurrentHashMap<>();
     private Map<Long, Set<Account>> clients = new ConcurrentHashMap<>();
     private Set<Long> executedOperations = ConcurrentHashMap.newKeySet();
     private Map<Long, Lock> onGoingOperations = new ConcurrentHashMap<>();
-
-    private class LockableAccount extends Account {
-        private Lock lock = new ReentrantLock();
-        public LockableAccount(long clientID, long accountID, Currency currency, float balance) {
-            super(clientID, accountID, currency, balance);
-        }
-
-        public Lock getLock() {
-            return lock;
-        }
-    }
 
     public AccountServiceImpl(FraudMonitoring fraudMonitoring) {
         this.fraudMonitoring = fraudMonitoring;
@@ -37,7 +26,7 @@ public class AccountServiceImpl implements AccountService {
             return Result.FRAUD;
         }
 
-        if (accounts.putIfAbsent(accountID, new LockableAccount(clientID, accountID, currency, initialBalance)) != null) {
+        if (accounts.putIfAbsent(accountID, new Account(clientID, accountID, currency, initialBalance)) != null) {
             return Result.ALREADY_EXISTS;
         }
 
@@ -59,17 +48,21 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Result doPayment(Payment payment) {
-        onGoingOperations.putIfAbsent(payment.getOperationID(), new ReentrantLock());
-        onGoingOperations.get(payment.getOperationID()).lock();
-
+        ReentrantLock l = new ReentrantLock();
+        ReentrantLock existing = (ReentrantLock) onGoingOperations.putIfAbsent(payment.getOperationID(), l);
+        if (existing != null) {
+            l = existing;
+        }
+        
+        l.lock();
         try {
 
             if (executedOperations.contains(payment.getOperationID())) {
                 return Result.ALREADY_EXISTS;
             }
 
-            LockableAccount payer = accounts.get(payment.getPayerAccountID());
-            LockableAccount recipient = accounts.get(payment.getRecipientAccountID());
+            Account payer = accounts.get(payment.getPayerAccountID());
+            Account recipient = accounts.get(payment.getRecipientAccountID());
 
             if (payer == null || payment.getPayerID() != payer.getClientID()) {
                 return Result.PAYER_NOT_FOUND;
@@ -103,7 +96,8 @@ public class AccountServiceImpl implements AccountService {
 
             return Result.OK;
         } finally {
-            onGoingOperations.get(payment.getOperationID()).unlock();
+            l.unlock();
+            onGoingOperations.remove(payment.getOperationID());
         }
     }
 }
