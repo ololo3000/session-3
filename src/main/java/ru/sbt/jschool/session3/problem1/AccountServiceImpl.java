@@ -53,7 +53,7 @@ public class AccountServiceImpl implements AccountService {
         if (existing != null) {
             l = existing;
         }
-        
+
         l.lock();
         try {
 
@@ -80,18 +80,18 @@ public class AccountServiceImpl implements AccountService {
                 return Result.FRAUD;
             }
 
+            float recAmount;
+            if (payer.getCurrency() != recipient.getCurrency()) {
+                recAmount = payer.getCurrency().to(payment.getAmount(), recipient.getCurrency());
+            } else {
+                recAmount = payment.getAmount();
+            }
+
             if (!payer.withdrawFromBalance(payment.getAmount())) {
                 return Result.INSUFFICIENT_FUNDS;
             }
 
-            float amount;
-            if (payer.getCurrency() != recipient.getCurrency()) {
-                amount = payer.getCurrency().to(payment.getAmount(), recipient.getCurrency());
-            } else {
-                amount = payment.getAmount();
-            }
-
-            recipient.depositeInToBalance(amount);
+            recipient.depositeInToBalance(recAmount);
             executedOperations.add(payment.getOperationID());
 
             return Result.OK;
